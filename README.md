@@ -70,8 +70,10 @@ export PIXLY_API_KEY=pixly_sk_...
 ```
 
 ```bash
-# Stage an empty room (a URL or a local file — local files upload automatically)
+# Stage an empty room. Pass a URL, a local file, or an r2Path — local files
+# upload automatically, straight off an iPhone included.
 pixly stage living-room.jpg --style scandinavian
+pixly stage IMG_4821.HEIC --style japandi
 
 # One-click photo tools
 pixly enhance photo.jpg
@@ -86,9 +88,14 @@ pixly reel --before empty.jpg --after staged.jpg --reveal smooth
 # Account
 pixly balance
 pixly jobs
-pixly tools
+pixly uploads            # photos you have uploaded, with their r2Path
+pixly tools              # works with no API key
 pixly help
 ```
+
+Local files may be `jpg`, `jpeg`, `png`, `webp`, `heic`, `heif`, `tif` or
+`tiff`, up to 10 MB. HEIC is what an iPhone shoots by default; Pixly converts
+non-web formats server-side before any model sees them.
 
 Results are written to the current directory (or `--out <file>`). Tools that
 return several images (enhance gives you 3 to pick from) get `-1`, `-2`, …
@@ -96,7 +103,7 @@ suffixes.
 
 | Env var | Default | Description |
 | --- | --- | --- |
-| `PIXLY_API_KEY` | — | Your API key, from Settings. Required. |
+| `PIXLY_API_KEY` | — | Your API key, from Settings. Required for everything except `pixly tools`. |
 | `PIXLY_MCP_URL` | `https://pixly.app/api/mcp` | Endpoint override. |
 
 ## Note on scope

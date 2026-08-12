@@ -23,12 +23,23 @@ const IMAGE_POLL_MAX = 60 // ~2 min — image tools normally return completed in
 const VIDEO_POLL_MS = 5000
 const VIDEO_POLL_MAX = 120 // ~10 min
 
+// Keep in step with the server's allowlist (lib/storage/upload-guard.ts).
+// HEIC matters most: it is what an iPhone shoots by default, so it is the
+// likeliest file anyone points this at. The server transcodes non-web formats
+// to JPEG before any model sees them, so all of these work end to end.
 const CONTENT_TYPES = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
 }
+
+/** Server-side cap for images. Checked here too, to fail before the upload. */
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 
@@ -64,7 +75,10 @@ async function rpc(method, params) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
+      // Omitted entirely when there is no key, rather than sent as an empty
+      // bearer: discovery (tools/list) is public, and "Bearer " reads as a
+      // malformed credential rather than as no credential.
+      ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   })
@@ -103,8 +117,22 @@ async function resolvePhoto(input, prefix = "") {
   if (input.startsWith("users/")) return { [field("r2Path")]: input } // already an r2Path
   if (!existsSync(input)) fail(`not a file or URL: ${input}`)
   const contentType = CONTENT_TYPES[extname(input).toLowerCase()]
-  if (!contentType) fail(`unsupported file type: ${input} (use jpg, png, or webp)`)
+  if (!contentType) {
+    fail(
+      `unsupported file type: ${input}\n` +
+        `  supported: ${Object.keys(CONTENT_TYPES).map((e) => e.slice(1)).join(", ")}`,
+    )
+  }
   const bytes = await readFile(input)
+  // Check the size before uploading rather than after. The server signs the
+  // length into the presigned URL, so an oversized file fails at R2 with a
+  // bare 403 that says nothing useful — this says which file and how big.
+  if (bytes.byteLength > MAX_IMAGE_BYTES) {
+    fail(
+      `${input} is ${(bytes.byteLength / 1024 / 1024).toFixed(1)} MB — the limit is ` +
+        `${MAX_IMAGE_BYTES / 1024 / 1024} MB. Nothing was uploaded and no credits were used.`,
+    )
+  }
   // Send the exact size: the server signs it into the presigned URL, so the
   // upload is bounded by R2 itself rather than by our good behaviour. The
   // server still accepts tickets without it, for older clients.
@@ -172,6 +200,46 @@ async function runAndSave(toolName, args, { video = false, out, base }) {
   if (urls.length === 0) fail(`job ${jobId} completed but returned no result URLs`)
   const saved = await download(urls, out, base, video ? ".mp4" : ".jpg")
   for (const f of saved) console.log(f)
+}
+
+/**
+ * One-line summary of a tool description for `pixly tools`.
+ *
+ * Splitting on the first ". " looked right and wasn't: it cut
+ * before_after_reel at "(e.g." and left get_credit_balance with two full
+ * stops, because abbreviations and a trailing period are both just ". ".
+ * Clamping on width instead has no such edge cases — and the credits sentence
+ * is dropped first, since it is identical on every generation tool and says
+ * nothing that distinguishes them.
+ */
+function summarize(description, width = 96) {
+  const text = description.replace(/\s*Costs credits from the user's Pixly balance\.\s*$/, "").trim()
+  if (text.length <= width) return text
+  const clipped = text.slice(0, width)
+  // Prefer a word boundary, but only if one is reasonably near the end.
+  const space = clipped.lastIndexOf(" ")
+  return `${(space > width * 0.6 ? clipped.slice(0, space) : clipped).replace(/[,;:.\s]+$/, "")}…`
+}
+
+/**
+ * Print an uploads listing. The r2Path is the useful column, not decoration:
+ * it is what you paste back as the photo argument for any command.
+ */
+function printUploads(result) {
+  for (const u of result.uploads ?? []) {
+    // KB under a megabyte: a 27 KB thumbnail rendered as "0.0MB" tells you
+    // nothing, and listing photos span three orders of magnitude.
+    const size = (
+      u.sizeBytes >= 1024 * 1024
+        ? `${(u.sizeBytes / 1024 / 1024).toFixed(1)}MB`
+        : `${Math.max(1, Math.round(u.sizeBytes / 1024))}KB`
+    ).padStart(7)
+    console.log(`${(u.uploadedAt ?? "").slice(0, 19)}  ${size}  ${u.filename}`)
+    console.log(`  ${u.r2Path}`)
+  }
+  // Surfaces "N files are unusable" and the empty-account hint, both of which
+  // explain an otherwise puzzling short or empty list.
+  if (result.note) console.error(result.note)
 }
 
 const baseFrom = (input, suffix) =>
@@ -274,9 +342,21 @@ const commands = {
       limit: flags.limit ? Number(flags.limit) : 20,
       ...(flags.type ? { type: String(flags.type) } : {}),
     })
+    // `--type uploads` comes back as { uploads } rather than { jobs }. Without
+    // this the command printed nothing at all and looked like an empty account.
+    if (result.uploads) return printUploads(result)
     for (const j of result.jobs ?? []) {
       console.log(`${j.jobId}  ${String(j.type).padEnd(14)} ${String(j.status).padEnd(11)} ${j.createdAt}`)
     }
+  },
+
+  async uploads({ flags }) {
+    printUploads(
+      await callTool("list_library", {
+        type: "uploads",
+        limit: flags.limit ? Number(flags.limit) : 20,
+      }),
+    )
   },
 
   async balance() {
@@ -287,17 +367,21 @@ const commands = {
   async tools() {
     const result = await rpc("tools/list", {})
     for (const tool of result.tools ?? []) {
-      console.log(`${tool.name.padEnd(22)} ${tool.description.split(". ")[0]}.`)
+      console.log(`${tool.name.padEnd(22)} ${summarize(tool.description)}`)
     }
   },
 }
+
+/** Commands that work with no API key — see the check at the bottom. */
+const PUBLIC_COMMANDS = new Set(["tools"])
 
 const HELP = `pixly — Pixly for the command line · https://pixly.app/mcp
 
 Setup:
   export PIXLY_API_KEY=pixly_sk_...   # create at https://pixly.app/app/settings
 
-Photos (pass a URL or a local file — local files upload automatically):
+Photos (pass a URL, a local file, or an r2Path from "pixly uploads"):
+  local files upload automatically — jpg, png, webp, heic, heif, tif, tiff
   pixly stage <photo> --style <id> [--room <type>] [--pro] [--out file.jpg]
   pixly enhance <photo> [--out file.jpg]
   pixly declutter <photo> [--out file.jpg]
@@ -312,7 +396,8 @@ Account:
   pixly balance            credits remaining
   pixly jobs [--limit 20] [--type images|videos]
   pixly job <jobId>        status + result URLs
-  pixly tools              list every available tool
+  pixly uploads [--limit]  photos you have uploaded, with their r2Path
+  pixly tools              list every available tool (no API key needed)
 `
 
 // ── Entry ────────────────────────────────────────────────────────────────────
@@ -323,6 +408,11 @@ if (!command || command === "help" || command === "--help" || command === "-h") 
   process.exit(0)
 }
 if (!commands[command]) fail(`unknown command "${command}" — run: pixly help`)
-if (!API_KEY) fail("PIXLY_API_KEY is not set. Create a key at https://pixly.app/app/settings.")
+// `tools` only asks the server what it can do, which needs no credential and
+// no account — so someone can see what they would be signing up for before
+// they sign up. Everything else touches their library or their credits.
+if (!API_KEY && !PUBLIC_COMMANDS.has(command)) {
+  fail("PIXLY_API_KEY is not set. Create a key at https://pixly.app/app/settings.")
+}
 
 commands[command](parseArgs(rest)).catch((err) => fail(err instanceof Error ? err.message : String(err)))
