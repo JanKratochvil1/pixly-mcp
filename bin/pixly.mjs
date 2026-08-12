@@ -105,16 +105,26 @@ async function resolvePhoto(input, prefix = "") {
   const contentType = CONTENT_TYPES[extname(input).toLowerCase()]
   if (!contentType) fail(`unsupported file type: ${input} (use jpg, png, or webp)`)
   const bytes = await readFile(input)
+  // Send the exact size: the server signs it into the presigned URL, so the
+  // upload is bounded by R2 itself rather than by our good behaviour. The
+  // server still accepts tickets without it, for older clients.
   const ticket = await callTool("create_upload_ticket", {
     filename: basename(input),
     contentType,
+    sizeBytes: bytes.byteLength,
   })
   const put = await fetch(ticket.uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": contentType },
+    headers: { "Content-Type": contentType, "Content-Length": String(bytes.byteLength) },
     body: bytes,
   })
-  if (!put.ok) fail(`upload failed (HTTP ${put.status})`)
+  if (!put.ok) {
+    fail(
+      put.status === 413 || put.status === 400
+        ? `upload rejected (HTTP ${put.status}) — the file may be over the 10 MB limit`
+        : `upload failed (HTTP ${put.status})`,
+    )
+  }
   console.error(`uploaded ${input} → ${ticket.r2Path}`)
   return { [field("r2Path")]: ticket.r2Path }
 }
