@@ -2,9 +2,9 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "app.pixly/pixly",
   "title": "Pixly",
-  "description": "Virtual staging, listing-photo enhancement and cinematic real-estate video, from any AI assistant.",
+  "description": "Every visual AI tool for property listings — staging, enhancement, decluttering, cinematic video.",
   "websiteUrl": "https://pixly.app/mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "remotes": [
     {
       "type": "streamable-http",
