@@ -1,0 +1,35 @@
+{
+  "name": "pixly-cli",
+  "version": "0.1.3",
+  "description": "Pixly for the command line and AI coding agents — virtual staging, listing-photo enhancement, and cinematic real-estate videos from your terminal.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pixly": "bin/pixly.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "pixly",
+    "real-estate",
+    "virtual-staging",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "cli"
+  ],
+  "homepage": "https://pixly.app/mcp",
+  "bugs": {
+    "url": "https://github.com/JanKratochvil1/pixly-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JanKratochvil1/pixly-mcp.git"
+  }
+}
