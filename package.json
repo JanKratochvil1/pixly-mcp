@@ -1,6 +1,6 @@
 {
   "name": "pixly-cli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Pixly for the command line and AI coding agents — virtual staging, listing-photo enhancement, and cinematic real-estate videos from your terminal.",
   "license": "MIT",
   "type": "module",
