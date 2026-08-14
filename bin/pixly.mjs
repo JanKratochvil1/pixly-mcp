@@ -307,6 +307,11 @@ const commands = {
       {
         ...photo,
         cameraMove: String(flags.move ?? "zoom"),
+        // Only sent when asked for. Omitting it is not the same as picking a
+        // side: each move has its own default wording, and one move (drone
+        // orbit) has no default at all, so a flag we invented here would
+        // change the shot the server would otherwise render.
+        ...(flags.direction ? { direction: String(flags.direction) } : {}),
         durationSeconds: flags.duration ? Number(flags.duration) : 5,
         format: String(flags.format ?? "9:16"),
       },
@@ -390,6 +395,7 @@ Photos (pass a URL, a local file, or an r2Path from "pixly uploads"):
 
 Videos:
   pixly motion <photo> [--move zoom|orbit|crane-up|...] [--duration 5|10] [--format 9:16|16:9] [--out file.mp4]
+                       [--direction left-to-right|right-to-left]  pan, orbit and drone-orbit only
   pixly reel --before a.jpg --after b.jpg [--reveal smooth|slideIn|dropLand|glowBuild|movers] [--out file.mp4]
 
 Account:

@@ -83,6 +83,7 @@ pixly plot-sign lot.jpg --text "SOLD" --look stone
 
 # Videos
 pixly motion photo.jpg --move orbit --duration 5
+pixly motion photo.jpg --move pan --direction right-to-left   # pan, orbit, drone-orbit
 pixly reel --before empty.jpg --after staged.jpg --reveal smooth
 
 # Account
