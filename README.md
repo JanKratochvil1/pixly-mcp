@@ -78,8 +78,17 @@ pixly stage IMG_4821.HEIC --style japandi
 # One-click photo tools
 pixly enhance photo.jpg
 pixly declutter photo.jpg --out clean.jpg
+pixly remove-furniture room.jpg
 pixly day-to-night exterior.jpg
 pixly plot-sign lot.jpg --text "SOLD" --look stone
+
+# Exteriors. Everything defaults to Auto; flags pick a look.
+pixly sky exterior.jpg                              # natural blue sky, reflections updated
+pixly sky exterior.jpg --sky sunset --sun-at 0.7,0.2   # place the sun (x,y from the top-left, 0..1)
+pixly lawn exterior.jpg --lawn lush --shade deep --stripes off
+pixly touch-up exterior.jpg                         # sky, lawn, driveway and clutter, each only where needed
+pixly touch-up exterior.jpg --skip clutter          # keep the car in the drive
+pixly touch-up exterior.jpg --only lawn,driveway
 
 # Videos
 pixly motion photo.jpg --move orbit --duration 5

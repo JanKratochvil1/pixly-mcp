@@ -245,6 +245,37 @@ function printUploads(result) {
 const baseFrom = (input, suffix) =>
   `${basename(input, extname(input)).replace(/^users\/.*\//, "")}-${suffix}`
 
+/** "light-clouds" on the command line is "light_clouds" in the schema. */
+const id = (v) => String(v).trim().toLowerCase().replace(/-/g, "_")
+
+/**
+ * Exterior touch-up scope. The four fixes are named the way the app names
+ * them (the schema says "hardscape" where a person says "driveway").
+ * `--only` is an allowlist, `--skip` a denylist; without either the tool
+ * fixes everything it finds, so nothing is sent at all.
+ */
+const TOUCHUP_FIXES = { sky: "sky", lawn: "lawn", driveway: "hardscape", hardscape: "hardscape", clutter: "clutter" }
+function touchupScope(flags) {
+  const parse = (v) =>
+    String(v)
+      .split(",")
+      .map((f) => f.trim().toLowerCase())
+      .filter(Boolean)
+      .map((f) => {
+        if (!TOUCHUP_FIXES[f]) fail(`unknown fix "${f}" — use sky, lawn, driveway or clutter`)
+        return TOUCHUP_FIXES[f]
+      })
+  if (flags.only && flags.skip) fail("use --only or --skip, not both")
+  if (flags.only) return { fix: [...new Set(parse(flags.only))] }
+  if (flags.skip) {
+    const skip = new Set(parse(flags.skip))
+    const fix = ["sky", "lawn", "hardscape", "clutter"].filter((f) => !skip.has(f))
+    if (fix.length === 0) fail("--skip removed every fix — nothing would change")
+    return { fix }
+  }
+  return {}
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 const commands = {
@@ -283,6 +314,59 @@ const commands = {
   async "day-to-night"({ positional, flags }) {
     const photo = await resolvePhoto(positional[0])
     await runAndSave("day_to_night", photo, { out: flags.out, base: baseFrom(positional[0], "night") })
+  },
+
+  async "remove-furniture"({ positional, flags }) {
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave("remove_furniture", photo, { out: flags.out, base: baseFrom(positional[0], "empty") })
+  },
+
+  async sky({ positional, flags }) {
+    // Flags are checked before the photo is resolved, so a typo fails before
+    // a local file is uploaded. --sun-at "0.7,0.2" places the sun (0..1 from
+    // the left and the top) and implies --sun on; the server clamps it into
+    // the sky.
+    let sunPoint = {}
+    if (flags["sun-at"]) {
+      const [x, y] = String(flags["sun-at"]).split(",").map(Number)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) fail('--sun-at takes "x,y" between 0 and 1, e.g. --sun-at 0.7,0.2')
+      sunPoint = { sun: "on", sunX: x, sunY: y }
+    }
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "replace_sky",
+      {
+        ...photo,
+        ...(flags.sky ? { sky: id(flags.sky) } : {}),
+        ...(flags.sun ? { sun: id(flags.sun) } : {}),
+        ...sunPoint,
+      },
+      { out: flags.out, base: baseFrom(positional[0], "sky") },
+    )
+  },
+
+  async lawn({ positional, flags }) {
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "replace_lawn",
+      {
+        ...photo,
+        ...(flags.lawn ? { lawn: id(flags.lawn) } : {}),
+        ...(flags.shade ? { shade: id(flags.shade) } : {}),
+        ...(flags.stripes ? { stripes: id(flags.stripes) } : {}),
+      },
+      { out: flags.out, base: baseFrom(positional[0], "lawn") },
+    )
+  },
+
+  async "touch-up"({ positional, flags }) {
+    const scope = touchupScope(flags) // before the upload, so a bad flag costs nothing
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "touch_up_exterior",
+      { ...photo, ...scope },
+      { out: flags.out, base: baseFrom(positional[0], "touched-up") },
+    )
   },
 
   async "plot-sign"({ positional, flags }) {
@@ -390,8 +474,17 @@ Photos (pass a URL, a local file, or an r2Path from "pixly uploads"):
   pixly stage <photo> --style <id> [--room <type>] [--pro] [--out file.jpg]
   pixly enhance <photo> [--out file.jpg]
   pixly declutter <photo> [--out file.jpg]
+  pixly remove-furniture <photo> [--out file.jpg]
   pixly day-to-night <photo> [--out file.jpg]
   pixly plot-sign <photo> --text "SOLD" [--look stone|metal|grass|sign] [--out file.jpg]
+
+Exteriors:
+  pixly sky <photo> [--sky clear|light-clouds|dramatic-clouds|sunset|pastel-sunrise|winter-clear]
+                    [--sun auto|on|off] [--sun-at 0.7,0.2] [--out file.jpg]
+  pixly lawn <photo> [--lawn fresh-mown|lush|natural|golf|warm-season] [--shade light|medium|deep]
+                     [--stripes auto|on|off] [--out file.jpg]
+  pixly touch-up <photo> [--only sky,lawn,driveway,clutter | --skip clutter] [--out file.jpg]
+                    sky, lawn, driveway and clutter fixed in one pass, each only where needed
 
 Videos:
   pixly motion <photo> [--move zoom|orbit|crane-up|...] [--duration 5|10] [--format 9:16|16:9] [--out file.mp4]
