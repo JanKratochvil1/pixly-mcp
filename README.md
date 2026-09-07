@@ -90,6 +90,9 @@ pixly touch-up exterior.jpg                         # sky, lawn, driveway and cl
 pixly touch-up exterior.jpg --skip clutter          # keep the car in the drive
 pixly touch-up exterior.jpg --only lawn,driveway
 
+# HD upscale: 2x with real detail. Free on a Pixly result, 1 credit on your own photo.
+pixly upscale photo.jpg
+
 # Videos
 pixly motion photo.jpg --move orbit --duration 5
 pixly motion photo.jpg --move pan --direction right-to-left   # pan, orbit, drone-orbit

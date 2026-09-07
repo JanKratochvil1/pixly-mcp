@@ -369,6 +369,13 @@ const commands = {
     )
   },
 
+  async upscale({ positional, flags }) {
+    // Free on a Pixly result (an r2Path from `pixly jobs`), 1 credit on a
+    // file or URL of your own — the server decides from the path.
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave("upscale_hd", photo, { out: flags.out, base: baseFrom(positional[0], "hd") })
+  },
+
   async "plot-sign"({ positional, flags }) {
     const photo = await resolvePhoto(positional[0])
     if (!flags.text) fail('--text is required (e.g. --text "SOLD")')
@@ -485,6 +492,10 @@ Exteriors:
                      [--stripes auto|on|off] [--out file.jpg]
   pixly touch-up <photo> [--only sky,lawn,driveway,clutter | --skip clutter] [--out file.jpg]
                     sky, lawn, driveway and clutter fixed in one pass, each only where needed
+
+Finish:
+  pixly upscale <photo> [--out file.jpg]   2x resolution with real detail, up to 4096 px;
+                                           free on a Pixly result, 1 credit on your own photo
 
 Videos:
   pixly motion <photo> [--move zoom|orbit|crane-up|...] [--duration 5|10] [--format 9:16|16:9] [--out file.mp4]
