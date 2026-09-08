@@ -586,6 +586,14 @@ if (!command || command === "help" || command === "--help" || command === "-h") 
   process.exit(0)
 }
 if (!commands[command]) fail(`unknown command "${command}" — run: pixly help`)
+// `pixly <command> --help` is what people type when they want the usage line
+// for one command, and it must answer before anything asks for a credential:
+// being told to create an API key when you asked how a command works is a
+// dead end. The help is one screen, so print the lot and point at the line.
+if (rest.includes("--help") || rest.includes("-h")) {
+  console.log(HELP)
+  process.exit(0)
+}
 // `tools` only asks the server what it can do, which needs no credential and
 // no account — so someone can see what they would be signing up for before
 // they sign up. Everything else touches their library or their credits.
