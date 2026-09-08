@@ -90,7 +90,12 @@ pixly touch-up exterior.jpg                         # sky, lawn, driveway and cl
 pixly touch-up exterior.jpg --skip clutter          # keep the car in the drive
 pixly touch-up exterior.jpg --only lawn,driveway
 
-# HD upscale: 2x with real detail. Free on a Pixly result, 1 credit on your own photo.
+# Restyle: new finishes on the surfaces you name; everything else stays as shot.
+pixly restyle room.jpg --walls sage                    # walls only
+pixly restyle room.jpg --walls clay-pink --floor walnut   # both in one run, one credit
+pixly restyle kitchen.jpg --cabinets "warm terracotta fronts with brass handles"
+
+# HD upscale: up to 4x with real detail. Free on a Pixly result, 1 credit on your own photo.
 pixly upscale photo.jpg
 
 # Videos

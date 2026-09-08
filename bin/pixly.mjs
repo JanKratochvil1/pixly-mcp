@@ -276,6 +276,58 @@ function touchupScope(flags) {
   return {}
 }
 
+/**
+ * Restyle scope. One flag per surface, and its value is either a preset
+ * finish or the finish in your own words — `--walls sage` and
+ * `--walls "limewash in a warm clay"` are both valid, and the second is sent
+ * as the custom look with a note. A surface is only touched if its flag is
+ * given; with no flags at all the tool repaints the walls on auto.
+ */
+const RESTYLE_SURFACE_FLAGS = {
+  walls: "walls",
+  floor: "floor",
+  cabinets: "cabinets",
+  tiles: "bathroom_tiles",
+  "bathroom-tiles": "bathroom_tiles",
+  furniture: "furniture",
+}
+const RESTYLE_LOOKS = {
+  walls: ["warm_white", "crisp_white", "soft_grey", "greige", "warm_beige", "clay_pink", "sage", "soft_blue", "olive_green", "graphite", "deep_navy", "terracotta_walls", "panelling", "wallpaper_textured", "limewash", "microcement", "exposed_brick", "timber_slats"],
+  floor: ["light_oak", "mid_oak", "wide_ash", "walnut", "herringbone_oak", "grey_plank", "polished_concrete", "stone_tile", "terracotta_floor", "slate_tile", "checker_tile", "carpet_neutral"],
+  cabinets: ["white_shaker", "cream_shaker", "handleless_white", "handleless_grey", "charcoal", "matt_black_cabinets", "natural_oak", "walnut_cabinets", "sage_cabinets", "forest_green", "navy_cabinets", "two_tone", "gloss_white"],
+  bathroom_tiles: ["white_metro", "zellige_white", "white_large", "grey_porcelain", "marble_large", "travertine", "terrazzo", "encaustic_pattern", "matt_black_hex", "slate_dark", "wood_effect_tile", "green_gloss"],
+  furniture: ["light_neutral", "mid_grey_wool", "warm_greige", "cream_boucle", "tan_leather", "black_leather", "green_velvet", "navy_velvet", "rust_velvet", "warm_wood", "dark_wood", "black_metal"],
+}
+const RESTYLE_NOTE_MAX = 120
+function restyleScope(flags) {
+  const surfaces = []
+  const looks = {}
+  const notes = {}
+  for (const [flag, surface] of Object.entries(RESTYLE_SURFACE_FLAGS)) {
+    if (flags[flag] === undefined) continue
+    if (surfaces.includes(surface)) continue
+    surfaces.push(surface)
+    const raw = String(flags[flag]).trim()
+    if (!raw || raw.toLowerCase() === "auto") continue
+    const preset = id(raw)
+    if (RESTYLE_LOOKS[surface].includes(preset)) {
+      looks[surface] = preset
+      continue
+    }
+    // Not a preset, so it is the finish in the user's own words. A one-word
+    // typo would otherwise be sent as a description and come back as
+    // something nobody asked for, so anything short and id-shaped is refused.
+    if (!raw.includes(" ")) {
+      fail(`unknown ${surface} finish "${raw}" — use one of: ${RESTYLE_LOOKS[surface].join(", ")}, or describe it in a few words`)
+    }
+    if (raw.length > RESTYLE_NOTE_MAX) fail(`--${flag} description is ${raw.length} characters; keep it under ${RESTYLE_NOTE_MAX}`)
+    looks[surface] = "custom"
+    notes[surface] = raw
+  }
+  if (surfaces.length === 0) return {}
+  return { surfaces, ...(Object.keys(looks).length ? { looks } : {}), ...(Object.keys(notes).length ? { notes } : {}) }
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 const commands = {
@@ -366,6 +418,16 @@ const commands = {
       "touch_up_exterior",
       { ...photo, ...scope },
       { out: flags.out, base: baseFrom(positional[0], "touched-up") },
+    )
+  },
+
+  async restyle({ positional, flags }) {
+    const scope = restyleScope(flags) // before the upload, so a bad finish costs nothing
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "restyle_room",
+      { ...photo, ...scope },
+      { out: flags.out, base: baseFrom(positional[0], "restyled") },
     )
   },
 
@@ -493,8 +555,14 @@ Exteriors:
   pixly touch-up <photo> [--only sky,lawn,driveway,clutter | --skip clutter] [--out file.jpg]
                     sky, lawn, driveway and clutter fixed in one pass, each only where needed
 
+Rooms:
+  pixly restyle <photo> [--walls sage] [--floor walnut] [--cabinets forest-green]
+                        [--tiles terrazzo] [--furniture tan-leather] [--out file.jpg]
+                    new finishes on the surfaces you name; each takes a preset, "auto",
+                    or the finish in your own words ("--walls \"limewash in a warm clay\"")
+
 Finish:
-  pixly upscale <photo> [--out file.jpg]   2x resolution with real detail, up to 4096 px;
+  pixly upscale <photo> [--out file.jpg]   up to 4x resolution with real detail, to 4096 px;
                                            free on a Pixly result, 1 credit on your own photo
 
 Videos:
