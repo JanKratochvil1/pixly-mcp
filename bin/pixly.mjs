@@ -421,6 +421,21 @@ const commands = {
     )
   },
 
+  async season({ positional, flags }) {
+    // Validated before the upload, so a typo costs nothing. Auto is the
+    // default and the common case: a snowy photo comes back in high summer.
+    const SEASONS = ["auto", "spring", "summer", "autumn", "winter"]
+    if (flags.season && !SEASONS.includes(id(flags.season))) {
+      fail(`unknown season "${flags.season}" — use ${SEASONS.join(", ")}`)
+    }
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "reset_season",
+      { ...photo, ...(flags.season ? { season: id(flags.season) } : {}) },
+      { out: flags.out, base: baseFrom(positional[0], flags.season ? id(flags.season) : "season") },
+    )
+  },
+
   async restyle({ positional, flags }) {
     const scope = restyleScope(flags) // before the upload, so a bad finish costs nothing
     const photo = await resolvePhoto(positional[0])
@@ -554,6 +569,9 @@ Exteriors:
                      [--stripes auto|on|off] [--out file.jpg]
   pixly touch-up <photo> [--only sky,lawn,driveway,clutter | --skip clutter] [--out file.jpg]
                     sky, lawn, driveway and clutter fixed in one pass, each only where needed
+  pixly season <photo> [--season auto|spring|summer|autumn|winter] [--out file.jpg]
+                    the same property in another season — snow off and the garden in leaf,
+                    or a summer photo moved to autumn or winter
 
 Rooms:
   pixly restyle <photo> [--walls sage] [--floor walnut] [--cabinets forest-green]

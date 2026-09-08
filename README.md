@@ -90,6 +90,10 @@ pixly touch-up exterior.jpg                         # sky, lawn, driveway and cl
 pixly touch-up exterior.jpg --skip clutter          # keep the car in the drive
 pixly touch-up exterior.jpg --only lawn,driveway
 
+# Seasonal Reset: the same property in another season.
+pixly season exterior.jpg                     # auto — a snowy photo comes back in high summer
+pixly season exterior.jpg --season winter     # or the other way
+
 # Restyle: new finishes on the surfaces you name; everything else stays as shot.
 pixly restyle room.jpg --walls sage                    # walls only
 pixly restyle room.jpg --walls clay-pink --floor walnut   # both in one run, one credit
