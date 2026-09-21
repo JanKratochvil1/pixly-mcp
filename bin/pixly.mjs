@@ -95,7 +95,11 @@ async function rpc(method, params) {
 async function callTool(name, args) {
   const result = await rpc("tools/call", { name, arguments: args })
   const text = result?.content?.[0]?.text ?? ""
-  if (result?.isError) fail(text || `${name} failed`)
+  // The server words its out-of-credits hint for agents ("call
+  // get_checkout_link"); a person at a terminal wants the command instead.
+  if (result?.isError) {
+    fail((text || `${name} failed`).replace(/Call get_checkout_link[^.]*\.?/, "Run: pixly checkout"))
+  }
   try {
     return JSON.parse(text)
   } catch {
@@ -537,6 +541,15 @@ const commands = {
     console.log(`${b.creditsRemaining} credits · ${b.plan}`)
   },
 
+  async checkout({ flags }) {
+    const link = await callTool("get_checkout_link", {
+      ...(typeof flags.plan === "string" ? { plan: flags.plan } : {}),
+      ...(flags.amount ? { topUpUsd: Number(flags.amount) } : {}),
+    })
+    console.log(link.summary)
+    console.log(link.url)
+  },
+
   async tools() {
     const result = await rpc("tools/list", {})
     for (const tool of result.tools ?? []) {
@@ -590,6 +603,8 @@ Videos:
 
 Account:
   pixly balance            credits remaining
+  pixly checkout [--plan starter|agent|pro_agent|team] [--amount 10-500]
+                           a Stripe payment link: subscribe (no plan yet) or top up credits
   pixly jobs [--limit 20] [--type images|videos]
   pixly job <jobId>        status + result URLs
   pixly uploads [--limit]  photos you have uploaded, with their r2Path

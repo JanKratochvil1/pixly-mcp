@@ -109,6 +109,7 @@ pixly reel --before empty.jpg --after staged.jpg --reveal smooth
 
 # Account
 pixly balance
+pixly checkout           # Stripe payment link — subscribe, or top up with --amount 25
 pixly jobs
 pixly uploads            # photos you have uploaded, with their r2Path
 pixly tools              # works with no API key
