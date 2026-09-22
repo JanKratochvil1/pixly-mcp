@@ -4,7 +4,7 @@
   "title": "Pixly",
   "description": "Every visual AI tool for property listings — staging, enhancement, decluttering, cinematic video.",
   "websiteUrl": "https://pixly.app/mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "remotes": [
     {
       "type": "streamable-http",
