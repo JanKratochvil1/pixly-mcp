@@ -344,6 +344,9 @@ const commands = {
     if (flags.variations) {
       console.error("note: --variations is ignored — staging returns one image per call. Run it again for another take.")
     }
+    // --pro picked a pricier model until the Pro tier was retired; every
+    // staging is now the same 1 credit. Accepted so old scripts keep working.
+    if (flags.pro) console.error("note: --pro is ignored — every staging now uses the same model and costs 1 credit.")
     await runAndSave(
       "virtual_staging",
       {
@@ -351,7 +354,6 @@ const commands = {
         style: String(flags.style),
         ...(flags.room ? { roomType: String(flags.room) } : {}),
         ...(flags.instructions ? { customInstructions: String(flags.instructions) } : {}),
-        ...(flags.pro ? { stagingQuality: "pro" } : {}),
       },
       { out: flags.out, base: baseFrom(positional[0], "staged") },
     )
@@ -472,6 +474,52 @@ const commands = {
     )
   },
 
+  async "floor-plan"({ positional, flags }) {
+    // Any picture of a plan — a sketch, a brochure page, a blueprint.
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "render_floor_plan",
+      { ...photo, ...(flags.look ? { look: id(flags.look) } : {}) },
+      { out: flags.out, base: baseFrom(positional[0], "plan") },
+    )
+  },
+
+  async makeover({ positional, flags }) {
+    const photo = await resolvePhoto(positional[0])
+    await runAndSave(
+      "makeover_exterior",
+      {
+        ...photo,
+        ...(flags.style ? { style: id(flags.style) } : {}),
+        ...(typeof flags.include === "string" ? { include: flags.include.split(",").map(id).filter(Boolean) } : {}),
+        ...(flags.keep ? { scope: "add" } : {}),
+        ...(typeof flags.note === "string" ? { note: flags.note } : {}),
+      },
+      { out: flags.out, base: baseFrom(positional[0], "garden") },
+    )
+  },
+
+  async video({ positional, flags }) {
+    const start = await resolvePhoto(positional[0])
+    const end = flags.end ? await resolvePhoto(String(flags.end), "end") : {}
+    // Presets are camelCase on the wire; people type them with dashes.
+    const move = flags.move ? String(flags.move).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : undefined
+    await runAndSave(
+      "photo_to_video",
+      {
+        ...start,
+        ...end,
+        ...(move ? { cameraMove: move } : {}),
+        ...(typeof flags.prompt === "string" ? { prompt: flags.prompt } : {}),
+        ...(flags.model ? { model: String(flags.model) } : {}),
+        ...(flags.duration ? { durationSeconds: Number(flags.duration) } : {}),
+        ...(flags.sound ? { sound: true } : {}),
+        ...(flags.format ? { format: String(flags.format) } : {}),
+      },
+      { video: true, out: flags.out, base: baseFrom(positional[0], "video") },
+    )
+  },
+
   async motion({ positional, flags }) {
     const photo = await resolvePhoto(positional[0])
     await runAndSave(
@@ -568,7 +616,7 @@ Setup:
 
 Photos (pass a URL, a local file, or an r2Path from "pixly uploads"):
   local files upload automatically — jpg, png, webp, heic, heif, tif, tiff
-  pixly stage <photo> --style <id> [--room <type>] [--pro] [--out file.jpg]
+  pixly stage <photo> --style <id> [--room <type>] [--out file.jpg]
   pixly enhance <photo> [--out file.jpg]
   pixly declutter <photo> [--out file.jpg]
   pixly remove-furniture <photo> [--out file.jpg]
@@ -585,12 +633,21 @@ Exteriors:
   pixly season <photo> [--season auto|spring|summer|autumn|winter] [--out file.jpg]
                     the same property in another season — snow off and the garden in leaf,
                     or a summer photo moved to autumn or winter
+  pixly makeover <photo> [--style auto|modern-minimal|mediterranean|classic-english|natural-lowwater|
+                                  tropical-resort|farmhouse] [--include pool,pergola,fire-pit,...]
+                        [--keep] [--note "a small pool with lavender"] [--out file.jpg]
+                    a whole garden scheme in one run; --keep builds into the existing garden
 
 Rooms:
   pixly restyle <photo> [--walls sage] [--floor walnut] [--cabinets forest-green]
                         [--tiles terrazzo] [--furniture tan-leather] [--out file.jpg]
                     new finishes on the surfaces you name; each takes a preset, "auto",
                     or the finish in your own words ("--walls \"limewash in a warm clay\"")
+
+Floor plans:
+  pixly floor-plan <picture> [--look furnished|isometric] [--out file.jpg]
+                    any picture of a plan (sketch, brochure, blueprint) → a furnished 2D plan
+                    or a 3D isometric view; the layout is kept exactly as drawn
 
 Finish:
   pixly upscale <photo> [--out file.jpg]   up to 4x resolution with real detail, to 4096 px;
@@ -599,6 +656,10 @@ Finish:
 Videos:
   pixly motion <photo> [--move zoom|orbit|crane-up|...] [--duration 5|10] [--format 9:16|16:9] [--out file.mp4]
                        [--direction left-to-right|right-to-left]  pan, orbit and drone-orbit only
+  pixly video <start> [--end <photo>] [--move smooth|walk|orbit-left|orbit-right|push-in|pull-back|rise-up]
+                      [--prompt "..."] [--model kling-v3|kling-2.6] [--duration 3|5|8|10|15] [--sound]
+                      [--format 16:9|9:16|1:1] [--out file.mp4]
+                       with --end the camera travels from the start photo and lands on the end one
   pixly reel --before a.jpg --after b.jpg [--reveal smooth|slideIn|dropLand|glowBuild|movers] [--out file.mp4]
 
 Account:

@@ -94,6 +94,14 @@ pixly touch-up exterior.jpg --only lawn,driveway
 pixly season exterior.jpg                     # auto — a snowy photo comes back in high summer
 pixly season exterior.jpg --season winter     # or the other way
 
+# Exterior Makeover: a whole garden scheme in one run.
+pixly makeover backyard.jpg --style mediterranean --include pool,pergola
+pixly makeover backyard.jpg --keep --include fire-pit   # build into the existing garden
+
+# Floor plans: any picture of a plan → a furnished 2D plan or a 3D view.
+pixly floor-plan sketch.jpg
+pixly floor-plan brochure.png --look isometric
+
 # Restyle: new finishes on the surfaces you name; everything else stays as shot.
 pixly restyle room.jpg --walls sage                    # walls only
 pixly restyle room.jpg --walls clay-pink --floor walnut   # both in one run, one credit
@@ -105,6 +113,8 @@ pixly upscale photo.jpg
 # Videos
 pixly motion photo.jpg --move orbit --duration 5
 pixly motion photo.jpg --move pan --direction right-to-left   # pan, orbit, drone-orbit
+pixly video kitchen-1.jpg --end kitchen-2.jpg               # camera travels and lands on the second photo
+pixly video living.jpg --prompt "slow push towards the window" --duration 8 --sound
 pixly reel --before empty.jpg --after staged.jpg --reveal smooth
 
 # Account
